@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ShieldAlert, Zap } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://skillrush-backend.onrender.com/api";
+// 🚀 FORCING CLOUD CONNECTION
+const API_URL = "https://skillrush-backend.onrender.com/api";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
