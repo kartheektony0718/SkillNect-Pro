@@ -1,33 +1,62 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const { Pool } = require('pg');
 const cors = require('cors');
 require('dotenv').config();
 
-// Initialize the app
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Middleware
-app.use(cors()); // Allows your React frontend to talk to this backend
-app.use(express.json()); // Allows the server to accept JSON data
-
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected Successfully!'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
-// Auth Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/profile', require('./routes/profile'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/resume', require('./routes/resume'));
-app.use('/api/ai', require('./routes/ai'));
-app.use('/api/ai', require('./routes/ai'));
-app.use('/api/interview', require('./routes/interview'));
-app.get('/', (req, res) => {
-  res.send('SkillNect Backend is running!');
+// 🔌 NEON POSTGRES CONNECTION
+// Hardcoded for immediate deployment success
+const pool = new Pool({
+  connectionString: "postgresql://neondb_owner:npg_Tywk6JF0vjhi@ep-divine-rain-aihok56x-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require",
+  ssl: { rejectUnauthorized: false }
 });
 
-// Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+// 🏠 ROOT ROUTE - Use this to verify connection on Render
+app.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json({ 
+      message: "SkillRush API is Online", 
+      db_status: "Connected to Neon", 
+      time: result.rows[0] 
+    });
+  } catch (err) {
+    res.status(500).json({ status: "DB Error", error: err.message });
+  }
 });
+
+// 🚀 REGISTRATION API
+app.post('/api/auth/register', async (req, res) => {
+  const { email, password, name } = req.body;
+  try {
+    const query = 'INSERT INTO users (email, password, name) VALUES ($1, $2, $3)';
+    await pool.query(query, [email.toLowerCase(), password, name]);
+    res.status(201).json({ message: "User Profile Created in Neon" });
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ error: "Registration Failed", details: err.message });
+  }
+});
+
+// 🔑 LOGIN API
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const query = 'SELECT * FROM users WHERE email = $1 AND password = $2';
+    const result = await pool.query(query, [email.toLowerCase(), password]);
+    
+    if (result.rows.length > 0) {
+      res.json({ message: "Login Successful", user: result.rows[0] });
+    } else {
+      res.status(401).json({ error: "Invalid credentials" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Server Error" });
+  }
+});
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`🚀 SkillRush API active on port ${PORT}`));

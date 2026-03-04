@@ -1,153 +1,103 @@
-import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  LayoutDashboard,
-  FileText,
-  MessageSquare,
-  UserCircle,
-  LogOut,
-  Zap,
-  ChevronLeft,
-  Menu,
-  X,
-  Map,
-  CircleAlertIcon, // 🚀 Added Map icon
+import { 
+  LayoutDashboard, 
+  Users, 
+  Database, 
+  ShieldAlert, 
+  LogOut, 
+  User, 
+  FileText, 
+  Map, 
+  BrainCircuit, 
+  Zap 
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
-
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/resume-builder", label: "Resume Builder", icon: FileText },
-  { to: "/interview-prep", label: "Interview Prep", icon: MessageSquare },
-  { to: "/roadmaps", label: "Roadmaps", icon: Map }, // 🚀 Added Roadmaps to Nav
-  { to: "/profile", label: "Profile", icon: UserCircle },
-  { to: "/certifications", label: "Certificates", icon: CircleAlertIcon  },
-];
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+  // Detect role from localStorage or auth state
+  const isAdmin = localStorage.getItem("user_role") === "admin";
 
-  useEffect(() => {
-    if (!isMobile) setMobileOpen(false);
-  }, [isMobile]);
+  // Define links based on the user's role
+  const links = isAdmin ? [
+    { label: "Operations", icon: LayoutDashboard, path: "/admin" },
+    { label: "Cloud Directory", icon: Users, path: "/admin" }, // Points back to the admin management table
+  ] : [
+    { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+    { label: "LMS Roadmaps", icon: Map, path: "/roadmaps" },
+    { label: "Interviews", icon: BrainCircuit, path: "/interview-prep" },
+    { label: "Resume Builder", icon: FileText, path: "/resume-builder" },
+    { label: "Profile", icon: User, path: "/profile" },
+  ];
+
+  const handleLogout = () => {
+    logout();
+    navigate("/auth");
+  };
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
-      {/* Mobile header */}
-      {isMobile && (
-        <header className="fixed top-0 inset-x-0 z-50 h-14 bg-sidebar border-b border-sidebar-border flex items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMobileOpen(true)} className="p-1.5">
-              <Menu className="h-5 w-5 text-sidebar-foreground" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Zap className="h-3.5 w-3.5 text-sidebar-primary-foreground" />
-              </div>
-              {/* Updated Branding */}
-              <span className="font-display font-bold text-sidebar-accent-foreground text-sm">SkillNect</span>
+    <div className="flex h-screen bg-[#050505] overflow-hidden">
+      {/* --- Sidebar --- */}
+      <aside className={`w-64 border-r hidden md:flex flex-col relative transition-all duration-300 ${
+        isAdmin ? 'border-primary/20 bg-primary/5' : 'border-white/5 bg-card'
+      }`}>
+        <div className="p-8 flex-1">
+          {/* Brand Logo */}
+          <div className="flex items-center gap-3 mb-12">
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${
+              isAdmin ? 'bg-primary shadow-glow' : 'bg-white/10'
+            }`}>
+               {isAdmin ? <ShieldAlert className="h-5 w-5 text-white" /> : <Zap className="h-5 w-5 text-primary" />}
             </div>
+            <span className="font-black uppercase italic text-white tracking-tighter">
+              {isAdmin ? "SkillRush OS" : "CareerForge AI"}
+            </span>
           </div>
-        </header>
-      )}
 
-      {/* Mobile overlay */}
-      {isMobile && mobileOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300",
-          isMobile
-            ? cn("w-64", mobileOpen ? "translate-x-0" : "-translate-x-full")
-            : collapsed ? "w-16" : "w-64"
-        )}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
-              <Zap className="h-4 w-4 text-sidebar-primary-foreground" />
-            </div>
-            {(!collapsed || isMobile) && (
-              <span className="font-display font-bold text-sidebar-accent-foreground truncate">
-                SkillNect
-              </span>
-            )}
-          </div>
-          {isMobile && (
-            <button onClick={() => setMobileOpen(false)} className="p-1.5">
-              <X className="h-5 w-5 text-sidebar-foreground" />
-            </button>
-          )}
+          {/* Navigation Links */}
+          <nav className="space-y-2">
+            {links.map((link) => (
+              <Link 
+                key={link.path} 
+                to={link.path} 
+                className={`flex items-center gap-3 p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  location.pathname === link.path 
+                    ? 'bg-primary text-white shadow-glow' 
+                    : 'text-muted-foreground hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <link.icon className="h-4 w-4" /> 
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.to;
-            return (
-              <RouterNavLink
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-soft"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {(!collapsed || isMobile) && <span>{item.label}</span>}
-              </RouterNavLink>
-            );
-          })}
-        </nav>
-
-        {/* Bottom */}
-        <div className="p-3 border-t border-sidebar-border space-y-1">
-          {!isMobile && (
-            <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
-            >
-              <ChevronLeft className={cn("h-4 w-4 shrink-0 transition-transform", collapsed && "rotate-180")} />
-              {!collapsed && <span>Collapse</span>}
-            </button>
-          )}
-          <button
-            onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-destructive/20 hover:text-destructive w-full transition-colors"
+        {/* --- Bottom Logout Button --- */}
+        <div className="p-8 border-t border-white/5">
+          <button 
+            onClick={handleLogout} 
+            className="flex items-center gap-3 text-red-500 font-black uppercase text-[10px] tracking-widest hover:opacity-50 transition-opacity"
           >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {(!collapsed || isMobile) && <span>Sign Out</span>}
+            <LogOut className="h-4 w-4" /> 
+            Terminate Session
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main
-        className={cn(
-          "flex-1 transition-all duration-300",
-          isMobile ? "mt-14" : collapsed ? "ml-16" : "ml-64"
+      {/* --- Main Content Area --- */}
+      <main className="flex-1 overflow-y-auto bg-grid-pattern relative">
+        <div className="relative z-10">
+          {children}
+        </div>
+        
+        {/* Subtle background glow for Admin Mode */}
+        {isAdmin && (
+          <div className="absolute inset-0 bg-primary/5 pointer-events-none z-0" />
         )}
-      >
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );

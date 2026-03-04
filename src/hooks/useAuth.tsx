@@ -1,50 +1,53 @@
-import { useState, useEffect, createContext, useContext } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 
-// Define our User structure
-interface User {
-  id: string;
-  email: string;
-}
-
+// 1. Define the Interface
 interface AuthContextType {
-  user: User | null;
+  user: any;
+  login: (userData: any, token: string) => void;
+  logout: () => void;
   loading: boolean;
-  login: (userData: User, token: string) => void;
-  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// 2. Export the RequireAuth component separately
+export const RequireAuth = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  return user ? <>{children}</> : <Navigate to="/auth" />;
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved token when app loads
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const savedUser = localStorage.getItem("skillrush_user");
+    if (savedUser) setUser(JSON.parse(savedUser));
     setLoading(false);
   }, []);
 
-  const login = (userData: User, token: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+  const login = (userData: any, token: string) => {
+    localStorage.setItem("skillrush_token", token);
+    localStorage.setItem("skillrush_user", JSON.stringify(userData));
+    localStorage.setItem("user_role", userData.role);
     setUser(userData);
   };
 
-  const signOut = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const logout = () => {
+    localStorage.clear();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signOut }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -52,32 +55,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
-};
-
-// Protects routes that require login
-export const RequireAuth = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth", { state: { from: location }, replace: true });
-    }
-  }, [user, loading, navigate, location]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-  return <>{children}</>;
 };

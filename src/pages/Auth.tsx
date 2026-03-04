@@ -1,186 +1,70 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Mail, Lock, User, ArrowLeft, Zap } from "lucide-react";
+import { ShieldAlert, Zap } from "lucide-react";
+
+const API_URL = import.meta.env.VITE_API_URL || "https://skillrush-backend.onrender.com/api";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [creds, setCreds] = useState({ email: "", password: "", name: "" });
   const navigate = useNavigate();
   const { login } = useAuth();
 
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
     try {
-      if (isLogin) {
-        // LOGIN logic pointing to our custom backend
-        const res = await fetch('http://localhost:5000/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to login");
+      const endpoint = isAdminMode ? 'auth/login' : (isLogin ? 'auth/login' : 'auth/register');
+      // The fetch now uses the clean API_URL variable
+      const res = await fetch(`${API_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: creds.email, password: creds.password, name: creds.name }),
+      });
 
-        login(data.user, data.token); // Save token to local storage
-        toast.success("Welcome back!");
-        navigate("/dashboard");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Connection Failed");
 
-      } else {
-        // REGISTRATION logic pointing to our custom backend
-        const res = await fetch('http://localhost:5000/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to register");
-
-        toast.success("Account created! Please sign in.");
-        setIsLogin(true); // Switch to login view automatically
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
+      localStorage.setItem("user_role", data.user.role);
+      login(data.user, data.token);
+      toast.success(`Access Level: ${data.user.role.toUpperCase()}`);
+      navigate(data.user.role === 'admin' ? "/admin" : "/dashboard");
+    } catch (err: any) {
+      toast.error(err.message || "Cloud Connection Refused");
     }
   };
+
   return (
-    <div className="min-h-screen flex bg-gradient-hero">
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-md"
-        >
-          <div className="flex items-center gap-3 mb-8">
-            <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-display font-bold text-primary-foreground">CareerForge AI</span>
+    <div className="min-h-screen flex items-center justify-center bg-black p-6">
+      <div className={`w-full max-w-md p-10 bg-card rounded-[2.5rem] border shadow-glow ${isAdminMode ? 'border-primary' : 'border-white/5'}`}>
+        <div className="text-center mb-8">
+          <div className={`h-16 w-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${isAdminMode ? 'bg-primary shadow-glow' : 'bg-white/5'}`}>
+            {isAdminMode ? <ShieldAlert className="text-white" /> : <Zap className="text-primary" />}
           </div>
-          <h1 className="text-4xl font-display font-bold text-primary-foreground mb-4">
-            Build Your Career with AI-Powered Tools
+          <h1 className="text-3xl font-black uppercase italic text-white tracking-tighter">
+            {isAdminMode ? "Admin Vault" : isLogin ? "Welcome" : "Register"}
           </h1>
-          <p className="text-lg text-primary-foreground/70">
-            Create ATS-optimized resumes, prepare for interviews, and accelerate your career growth with intelligent tools.
-          </p>
-        </motion.div>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-full max-w-md"
-        >
-          <div className="bg-card rounded-2xl p-8 shadow-glow border border-border">
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to home
-            </button>
-
-            <h2 className="text-2xl font-display font-bold text-card-foreground mb-1">
-              {isLogin ? "Welcome back" : "Create your account"}
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              {isLogin ? "Sign in to continue your journey" : "Start building your career today"}
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <AnimatePresence mode="wait">
-                {!isLogin && (
-                  <motion.div
-                    key="name"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <div className="relative mt-1">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="fullName"
-                        placeholder="John Doe"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="pl-10"
-                        required={!isLogin}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative mt-1">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
-                {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
-              </Button>
-            </form>
-
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary font-medium hover:underline"
-              >
-                {isLogin ? "Sign up" : "Sign in"}
-              </button>
-            </p>
-          </div>
-        </motion.div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && !isAdminMode && (
+            <Input placeholder="Full Name" value={creds.name} onChange={(e) => setCreds({...creds, name: e.target.value})} className="bg-white/5 border-white/10" />
+          )}
+          <Input placeholder={isAdminMode ? "Admin ID" : "Email"} value={creds.email} onChange={(e) => setCreds({...creds, email: e.target.value})} className="bg-white/5 border-white/10 uppercase font-bold" />
+          <Input type="password" placeholder="Password" value={creds.password} onChange={(e) => setCreds({...creds, password: e.target.value})} className="bg-white/5 border-white/10" />
+          <Button type="submit" className="w-full bg-primary h-14 font-black uppercase italic shadow-glow">Execute</Button>
+        </form>
+        <div className="mt-4 text-center">
+           <button onClick={() => setIsLogin(!isLogin)} className="text-xs text-white/40 hover:text-white uppercase tracking-widest">
+             {isLogin ? "Need an account? Register" : "Have an account? Login"}
+           </button>
+        </div>
+        <button onClick={() => setIsAdminMode(!isAdminMode)} className="w-full mt-6 text-[10px] font-black uppercase text-primary tracking-widest animate-pulse">
+          {isAdminMode ? "← Back to User Login" : "Enter Admin Portal"}
+        </button>
       </div>
     </div>
   );

@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { 
   Database, Code2, Zap, ShieldCheck, Cloud, BarChart3,
   Play, Pause, RotateCcw, Maximize, X, CheckCircle2, 
-  Lock, PlayCircle, MonitorPlay, Trophy, ChevronRight 
+  Lock, PlayCircle, MonitorPlay, Trophy, ChevronRight, Layout
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- LMS ROADMAP DATA ---
-const ROADMAPS = [
+// --- STATIC BASE ROADMAPS ---
+const STATIC_ROADMAPS = [
   {
     id: "oracle-apex",
     title: "Oracle APEX Expert",
@@ -89,7 +89,8 @@ const ROADMAPS = [
 
 const Roadmaps = () => {
   const { user } = useAuth();
-  const [activeTrack, setActiveTrack] = useState(ROADMAPS[0]);
+  const [availableTracks, setAvailableTracks] = useState(STATIC_ROADMAPS);
+  const [activeTrack, setActiveTrack] = useState(STATIC_ROADMAPS[0]);
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -97,22 +98,28 @@ const Roadmaps = () => {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 UPDATED PERSISTENCE LOGIC (Fixes the login/reload reset)
+  // 🚀 DYNAMIC CONTENT MERGE (Static + Admin Custom)
   useEffect(() => {
-    // Wait for user and email to be fully loaded before checking localStorage
-    if (!user || !user.email) return;
+    const custom = localStorage.getItem("custom_roadmaps");
+    if (custom) {
+      const parsedCustom = JSON.parse(custom).map((track: any) => ({
+        ...track,
+        icon: Layout, // Default icon for custom roadmaps
+        color: "text-primary"
+      }));
+      setAvailableTracks([...STATIC_ROADMAPS, ...parsedCustom]);
+    }
+  }, []);
 
+  // 🚀 PERSISTENCE SYNC
+  useEffect(() => {
+    if (!user || !user.email) return;
     const storageKey = `${user.email}_lms_progress_${activeTrack.id}`;
     const saved = localStorage.getItem(storageKey);
-    
-    if (saved) {
-      setCompletedModules(JSON.parse(saved));
-    } else {
-      setCompletedModules([]);
-    }
-  }, [user, activeTrack]); // Adding 'user' to the dependency array ensures re-run on login
+    setCompletedModules(saved ? JSON.parse(saved) : []);
+  }, [user, activeTrack]);
 
-  // YouTube API Script Injection
+  // YouTube API Logic
   useEffect(() => {
     if (!activeVideo) return;
     const loadVideo = () => {
@@ -145,8 +152,6 @@ const Roadmaps = () => {
     
     const newProgress = [...completedModules, moduleId];
     setCompletedModules(newProgress);
-    
-    // 🍒 SAVES TO THE UNIVERSAL CERTIFICATION BRIDGE KEY
     localStorage.setItem(`${user.email}_lms_progress_${activeTrack.id}`, JSON.stringify(newProgress));
     
     if (newProgress.length === activeTrack.modules.length) {
@@ -174,7 +179,7 @@ const Roadmaps = () => {
         <div className="grid lg:grid-cols-4 gap-8">
           {/* TRACK SELECTOR */}
           <div className="lg:col-span-1 space-y-3">
-            {ROADMAPS.map((track) => (
+            {availableTracks.map((track) => (
               <button 
                 key={track.id} 
                 onClick={() => setActiveTrack(track)} 
